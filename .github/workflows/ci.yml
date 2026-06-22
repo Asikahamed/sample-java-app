@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/**
+      - bugfix/**
+      - hotfix/**
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  java-ci:
+    uses: Asikahamed/common-ci/.github/workflows/common-java-ci.yml@main
+
+    with:
+      java-version: "20"
+      build-tool: "maven"
+
+      image-name: docker.io/asikahamed/sample-java-app
+
+      push-image: false
