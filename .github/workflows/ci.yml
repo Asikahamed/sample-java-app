@@ -22,6 +22,10 @@ jobs:
       java-version: "20"
       build-tool: "maven"
 
-      image-name: docker.io/asikahamed/sample-java-app
+      image-name: docker.io/asikahameddevops10/sample-java-app
 
-      push-image: false
+      push-image: true
+    
+    secrets:
+      REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+      REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
