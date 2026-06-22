@@ -11,3 +11,4 @@ public class HelloController {
         return "Hello from Spring Boot, this is a sample Java application!";
     }
 }
+
