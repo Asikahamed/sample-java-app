@@ -13,6 +13,10 @@ on:
     branches:
       - main
       - develop
+      
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   java-ci:
@@ -29,5 +33,3 @@ jobs:
     secrets:
       REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
       REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
-
-      
