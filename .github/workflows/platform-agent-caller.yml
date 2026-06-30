@@ -16,4 +16,4 @@ jobs:
       app_branch: ${{ github.ref_name }}
 
     secrets:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.PAT_TOKEN }}
