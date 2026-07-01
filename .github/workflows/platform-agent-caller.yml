@@ -9,7 +9,7 @@ on:
 
 jobs:
   platform-agent:
-    uses: Asikahamed/Platform-agents/.github/workflows/platform-agent-reusable.yml@feature/v1
+    uses: Asikahamed/Platform-agents/.github/workflows/platform-agent-reusable.yml@main
 
     with:
       app_repository: ${{ github.repository }}
