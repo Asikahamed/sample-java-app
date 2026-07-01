@@ -1,0 +1,138 @@
+name: Java CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/**
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: "11"
+  IMAGE_NAME: sample-java-app
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      ############################################################
+      # Checkout
+      ############################################################
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      ############################################################
+      # Setup Java
+      ############################################################
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      ############################################################
+      # Maven Wrapper Permission
+      ############################################################
+
+      - name: Make Maven Wrapper Executable
+        run: chmod +x mvnw
+
+      ############################################################
+      # Run Tests
+      ############################################################
+
+      - name: Run Unit Tests
+        run: ./mvnw clean test
+
+      ############################################################
+      # Generate Code Coverage
+      ############################################################
+
+      - name: Generate JaCoCo Report
+        run: ./mvnw jacoco:report
+
+      ############################################################
+      # Build Application
+      ############################################################
+
+      - name: Build Application
+        run: ./mvnw clean package -DskipTests
+
+      ############################################################
+      # Upload Build Artifact
+      ############################################################
+
+      - name: Upload JAR Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: springboot-jar
+          path: target/*.jar
+          retention-days: 7
+
+      ############################################################
+      # Docker Login
+      ############################################################
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      ############################################################
+      # Docker Metadata
+      ############################################################
+
+      - name: Extract Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      ############################################################
+      # Build & Push Docker Image
+      ############################################################
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      ############################################################
+      # Workflow Summary
+      ############################################################
+
+      - name: Build Summary
+        run: |
+          echo "========================================"
+          echo "Platform Agent CI Summary"
+          echo "========================================"
+          echo "Java Version : ${{ env.JAVA_VERSION }}"
+          echo "Build Tool   : Maven"
+          echo "Framework    : Spring Boot"
+          echo "Artifact     : target/*.jar"
+          echo "Docker Image : ${{ secrets.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}"
+          echo "========================================"
