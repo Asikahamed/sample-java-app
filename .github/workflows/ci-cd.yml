@@ -1,0 +1,185 @@
+name: Java CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/**
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: "11"
+  IMAGE_NAME: sample-java-app
+
+jobs:
+
+##############################################################################
+# Build
+##############################################################################
+
+  build:
+
+    name: Build
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Verify Maven
+        run: mvn -version
+
+      - name: Compile Application
+        run: mvn clean compile
+
+##############################################################################
+# Test
+##############################################################################
+
+  test:
+
+    name: Test
+
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Run Unit Tests
+        run: mvn test
+
+      - name: Generate JaCoCo Report
+        run: mvn jacoco:report
+
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: |
+            target/surefire-reports
+            target/site/jacoco
+          if-no-files-found: ignore
+
+##############################################################################
+# Package
+##############################################################################
+
+  package:
+
+    name: Package
+
+    runs-on: ubuntu-latest
+
+    needs: test
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Build JAR
+        run: mvn clean package -DskipTests
+
+      - name: Upload Application Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: springboot-jar
+          path: target/*.jar
+          retention-days: 7
+
+##############################################################################
+# Docker
+##############################################################################
+
+  docker:
+
+    name: Docker Build & Push
+
+    runs-on: ubuntu-latest
+
+    needs: package
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download JAR Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: springboot-jar
+          path: target
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Extract Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Pipeline Summary
+        run: |
+          echo "========================================"
+          echo "Java CI Pipeline"
+          echo "========================================"
+          echo "Java Version : ${{ env.JAVA_VERSION }}"
+          echo "Build Tool   : Maven"
+          echo "Framework    : Spring Boot"
+          echo "Artifact     : springboot-jar"
+          echo "Docker Image : ${{ secrets.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}"
+          echo "========================================"
